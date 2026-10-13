@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Cybersecurity Revision</title>
+<style>
+:root{color-scheme:dark}body{font-family:system-ui,-apple-system,sans-serif;background:#0b1220;color:#eef2ff;margin:0;padding:20px}main{max-width:650px;margin:auto}h1{font-size:1.7rem}button,select{font:inherit;border-radius:12px;padding:13px;border:1px solid #42526d;background:#1b2a44;color:white}button{cursor:pointer}button:disabled{opacity:.65}button.answer{display:block;width:100%;text-align:left;margin:9px 0}button.correct{background:#14532d;border-color:#22c55e}button.wrong{background:#7f1d1d;border-color:#ef4444}.panel{background:#152238;border:1px solid #34435b;padding:18px;border-radius:16px;margin:14px 0}.muted{color:#b4c3d8}.actions{display:flex;flex-wrap:wrap;gap:8px}.primary{background:#2563eb;border-color:#3b82f6}.hidden{display:none}select{width:100%}#feedback{font-weight:600;margin:12px 0}small{color:#c1cee1}
+</style>
+</head>
+<body><main>
+<h1>🛡️ Cybersecurity Revision</h1><p class="muted">HND practice • Saved progress • Offline-friendly single file</p>
+<div class="panel"><h2>Progress</h2><p id="stats">Loading…</p><p id="storageWarning" class="muted"></p><div class="actions"><button id="export">Export backup</button><button id="import">Import backup</button><button id="reset">Reset progress</button></div><input type="file" id="file" accept="application/json,.json" class="hidden"></div>
+<div class="panel"><label for="subject">Choose a subject</label><select id="subject"></select><p><button class="primary" id="start">Start / Continue quiz</button></p></div>
+<div class="panel hidden" id="quiz"><small id="count"></small><h2 id="question"></h2><div id="answers"></div><p id="feedback" aria-live="polite"></p><button id="next" class="primary hidden">Next question</button></div>
+</main><script>
+'use strict';
+const bank=[
+['Networking','Which OSI layer handles routing between networks?',['Network','Data Link','Transport','Session'],0,'Routers use Layer 3 IP addresses.'],
+['Networking','What does PAT allow?',['One private host per public IP','Many hosts to share one public IP using ports','Encryption of IP packets','Automatic VLAN assignment'],1,'PAT distinguishes sessions using port numbers.'],
+['Networking','What is the purpose of a VLAN?',['Increase cable speed','Create logical Layer 2 broadcast domains','Replace DHCP','Encrypt switch traffic'],1,'VLANs logically segment a switched network.'],
+['Switching & STP','What does STP prevent?',['IP address exhaustion','Layer 2 switching loops','DNS poisoning','Wireless interference'],1,'STP blocks redundant paths to prevent loops.'],
+['Switching & STP','What is an 802.1Q trunk used for?',['Carrying multiple VLANs','Allocating IP addresses','Connecting only access ports','Blocking all broadcasts'],0,'Trunks tag frames to identify VLANs, except typically the native VLAN.'],
+['Wireless','What does CAPWAP commonly connect?',['A lightweight AP and wireless LAN controller','Two DNS servers','A PC and a printer','Two VLAN databases'],0,'CAPWAP carries AP-controller control traffic and optionally data.'],
+['Wireless','Which authentication method uses client and server certificates?',['WEP','EAP-TLS','Open authentication','PSK only'],1,'EAP-TLS uses certificates for mutual authentication.'],
+['Wireless','What does CCMP use to protect wireless data?',['AES','DES','MD5','RC4'],0,'CCMP is based on AES and provides confidentiality and integrity.'],
+['Linux','What does chmod 644 file2 set?',['Owner rw, group r, others r','Everyone rwx','Owner rwx, others none','Owner r, group rw, others rw'],0,'6=read+write; 4=read.'],
+['Linux','What does ps -e | wc -l do?',['Count output lines from ps -e','Kill all processes','List open ports','Count Linux users only'],0,'The pipeline counts lines, including any ps header.'],
+['Linux','Which command changes the priority of an already-running process?',['nice','renice','tar','grep'],1,'renice changes a running process’s nice value.'],
+['Digital Forensics','Why use a hardware write blocker?',['Speed up evidence acquisition','Prevent writes to source evidence','Compress disk images','Recover passwords'],1,'Write blocking protects the original storage from modification.'],
+['Digital Forensics','What does chain of custody document?',['Every transfer and handling of evidence','Only file hashes','Only login failures','The suspect’s password'],0,'A custody record tracks possession, access, transfer and handling.'],
+['Digital Forensics','Which type of evidence is usually most volatile?',['RAM contents','A powered-off HDD','Printed notes','A DVD'],0,'RAM data is lost when power is removed.'],
+['Security & Law','Which UK law principally criminalises unauthorised computer access?',['Computer Misuse Act 1990','Freedom of Information Act 2000','Companies Act 2006','Copyright Act 1956'],0,'The Computer Misuse Act covers unauthorised access and related offences.'],
+['Security & Law','What does least privilege mean?',['Give everyone admin access','Give only the access needed for duties','Never use MFA','Use one shared account'],1,'Limit access to what each role requires.'],
+['Windows Server','What does a Group Policy Object help administrators do?',['Centrally configure users and computers','Replace all network switches','Encrypt all internet traffic','Assign MAC addresses'],0,'GPOs manage Windows settings centrally in Active Directory environments.'],
+['Windows Server','When share and NTFS permissions both apply, what governs effective access?',['The combined most restrictive result','Share permissions always override','NTFS permissions are ignored','The user chooses'],0,'Access must be permitted by both layers.'],
+['Ethical Hacking','What should be obtained before a penetration test?',['Written authorisation and scope','An anonymous email account','Domain administrator access by default','A malware sample'],0,'Permission and scope are essential for lawful testing.'],
+['Ethical Hacking','What is the primary purpose of reconnaissance?',['Gather information about the target','Delete system logs','Encrypt stolen data','Patch vulnerabilities'],0,'Reconnaissance identifies potential attack surface and context.']
+];
+const KEY='cyber-revision-v1';let progress={attempts:{}};let subject='All subjects',queue=[],position=0,locked=false,storageOK=true;
+const $=id=>document.getElementById(id);
+function save(){try{localStorage.setItem(KEY,JSON.stringify(progress));$('storageWarning').textContent='Progress saved on this device. Export backups occasionally.';}catch(e){storageOK=false;$('storageWarning').textContent='This browser is blocking saving. Export a backup before closing.';}}
+try{let old=localStorage.getItem(KEY);if(old){let parsed=JSON.parse(old);if(parsed&&parsed.attempts&&typeof parsed.attempts==='object')progress=parsed;}}catch(e){storageOK=false;}
+function stats(){let attempts=Object.values(progress.attempts),done=attempts.filter(x=>x&&x.tries>0),correct=done.filter(x=>x.correct);$('stats').textContent=`${done.length}/${bank.length} questions attempted • ${correct.length} last answered correctly • ${done.reduce((n,x)=>n+x.tries,0)} total attempts`;if(!storageOK)$('storageWarning').textContent='Saving unavailable here. Use Export backup.';}
+const subjects=['All subjects',...new Set(bank.map(q=>q[0]))];for(let s of subjects){let o=document.createElement('option');o.value=s;o.textContent=s;$('subject').append(o)}
+$('subject').addEventListener('change',e=>subject=e.target.value);
+function start(){queue=bank.map((q,i)=>i).filter(i=>subject==='All subjects'||bank[i][0]===subject);queue.sort((a,b)=>(progress.attempts[a]?.correct?1:0)-(progress.attempts[b]?.correct?1:0));position=0;$('quiz').classList.remove('hidden');show();}
+function show(){if(position>=queue.length){$('count').textContent='Complete';$('question').textContent='Subject finished!';$('answers').replaceChildren();$('feedback').textContent='Choose a subject to practise again.';$('next').classList.add('hidden');return;}locked=false;let i=queue[position],q=bank[i];$('count').textContent=`${q[0]} • Question ${position+1} of ${queue.length}`;$('question').textContent=q[1];$('feedback').textContent='';$('next').classList.add('hidden');$('answers').replaceChildren();q[2].forEach((answer,j)=>{let b=document.createElement('button');b.className='answer';b.textContent=String.fromCharCode(65+j)+'. '+answer;b.addEventListener('click',()=>choose(i,j));$('answers').append(b)});}
+function choose(i,j){if(locked)return;locked=true;let q=bank[i],ok=j===q[3],old=progress.attempts[i]||{tries:0};progress.attempts[i]={tries:old.tries+1,correct:ok};save();stats();[...$('answers').children].forEach((b,k)=>{b.disabled=true;if(k===q[3])b.classList.add('correct');else if(k===j)b.classList.add('wrong')});$('feedback').textContent=(ok?'Correct! ':'Incorrect. ')+q[4];$('next').classList.remove('hidden');}
+$('start').addEventListener('click',start);$('next').addEventListener('click',()=>{position++;show()});
+$('reset').addEventListener('click',()=>{if(confirm('Erase all saved quiz progress?')){progress={attempts:{}};save();stats();start();}});
+$('export').addEventListener('click',()=>{let blob=new Blob([JSON.stringify(progress,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='cybersecurity-progress.json';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000)});
+$('import').addEventListener('click',()=>$('file').click());$('file').addEventListener('change',async e=>{let f=e.target.files[0];if(!f)return;try{let data=JSON.parse(await f.text());if(!data||!data.attempts||typeof data.attempts!=='object'||Array.isArray(data.attempts))throw Error('Invalid backup');if(confirm('Replace current progress with this backup?')){progress=data;save();stats();}}catch(err){alert('Could not import backup: '+err.message)}e.target.value='';});
+stats();
+</script></body></html>
